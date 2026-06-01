@@ -75,8 +75,17 @@ if command -v xattr >/dev/null 2>&1; then
     xattr -cr "$DIST_DIR/$APP_NAME.app"
 fi
 
+#-----------------------------------------------------------------------------
+# Copy to ~/Applications for fast launch from internal SSD
+#-----------------------------------------------------------------------------
+APPS_DIR="$HOME/Applications"
+mkdir -p "$APPS_DIR"
+rm -rf "$APPS_DIR/$APP_NAME.app"
+cp -R "$DIST_DIR/$APP_NAME.app" "$APPS_DIR/$APP_NAME.app"
+
 echo ""
-echo "Done! App created at:"
-echo "  $DIST_DIR/$APP_NAME.app"
+echo "Done!"
+echo "  Build : $DIST_DIR/$APP_NAME.app"
+echo "  Installed : $APPS_DIR/$APP_NAME.app"
 echo ""
-echo "Double-click the app to launch it, or drag it to the Dock."
+echo "Launch from ~/Applications or drag to Dock from there."

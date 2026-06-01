@@ -130,8 +130,8 @@ class RelayApp(tk.Tk):
 
         self._build_ui()
         self._set_defaults()
-        self._auto_connect()
-        self.after(250, self._show_window)
+        self.after(100, self._show_window)
+        self.after(150, self._auto_connect)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     #-------------------------------------------------------------------------
