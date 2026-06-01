@@ -1,0 +1,14 @@
+Python/dist/
+Python/build/
+Python/__pycache__/
+Python/*.spec
+Python/AppIcon.iconset/
+Python/AppIcon.icns
+Python/relay_icon.png
+Python/relay_icon.ico
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+.DS_Store
