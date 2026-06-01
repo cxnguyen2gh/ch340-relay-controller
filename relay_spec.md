@@ -1,106 +1,138 @@
 ** GOAL **
   Create a reliable GUI app to control a 4-channel CH340 USB relay board.
+  Runs on macOS and Windows 11.
 
 ** CURRENT STATUS **
 
-- macOS app is implemented first.
-- The app is packaged as a native arm64 macOS app with PyInstaller.
-- Current macOS app path:
-  Python/dist/CH340 Relay Controller.app
-- Source code and build scripts are under ./Python.
-- Windows 11 packaging scripts are prepared but the EXE must be built on Windows.
+- macOS app is fully implemented and working.
+- Windows EXE is built automatically via GitHub Actions on every push to main.
+- Source code and all build scripts are under ./Python.
+- Git repository: ch340-relay-controller (hosted on GitHub)
 
-** IMPLEMENTED MACOS APP **
+** FILE LAYOUT **
 
-- Opens a small GUI window with 4 relay sections.
-- Each relay section contains:
-  - Channel title.
-  - LED status indicator.
-  - ON/OFF toggle button.
-  - Gray rounded label box with black text.
-- Relay labels are:
-  - Edge HD Power
-  - GT81 Power
-  - Fan Power
-  - SPARE
-- The ON/OFF button is vertically enlarged for easier clicking.
-- Overall GUI font sizes have been increased.
-- The Refresh Serial button uses the same button font style and a matching larger button size.
-- Bottom serial status text uses black text on a gray background for readability.
+  Python/
+    relay_controller.py        Main GUI application
+    create_icon.py             Generates relay_icon.png and relay_icon.ico
+    create_app.sh              Builds macOS .app bundle with PyInstaller
+    create_app_windows.bat     Builds Windows EXE locally (requires Windows)
+    install_startup_macos.sh   Installs LaunchAgent for login auto-start (macOS)
+    install_startup_windows.bat  Adds Startup folder shortcut (Windows)
+    requirements.txt           Python dependencies
+    dist/                      Build output (not committed to git)
 
-** RELAY INTERACTION **
+  .github/
+    workflows/
+      build-windows.yml        GitHub Actions workflow — builds Windows EXE
 
-- User can toggle each relay by clicking:
-  - The ON/OFF button.
-  - The LED.
-  - The gray label box below the relay.
-- The app sends standard 4-byte CH340 relay commands over serial.
-- The app auto-detects CH340-compatible serial ports.
-- Refresh Serial rescans and reconnects to the relay board.
+** GUI LAYOUT (per channel, top to bottom) **
 
-** RELAY DEFAULTS **
+  1. Channel title label   (CH 1 … CH 4)
+  2. LED indicator          Round, 36 x 36 px
+  3. ON / OFF toggle button
+  4. Device label box       Rounded rectangle, same width as relay panel
 
-- Desired startup relay state:
-  - Channel 1 ON.
-  - Channels 2, 3, and 4 OFF.
-- If the board is not connected, the app does not show Channel 1 as ON.
-- Default relay states are pushed only after serial communication is available.
+- All 4 channels are displayed side by side in one row.
+- A status bar at the bottom shows the connected serial port name.
+- A "Refresh Serial" button sits at the right of the status bar.
+
+** DEVICE LABELS **
+
+  CH 1 — Edge HD Power
+  CH 2 — GT81 Power
+  CH 3 — Fan Power
+  CH 4 — SPARE
 
 ** LED STATUS DISPLAY **
 
-- No serial communication:
-  - LED is gray.
-  - No radial lines are shown.
-- Relay ON with serial communication:
-  - LED is yellow.
-  - 10 radial lines are shown around the LED.
-- Relay OFF with serial communication:
-  - LED is light blue.
-  - No radial lines are shown.
+  Relay ON   → LED filled RED   (#cc2222)
+  Relay OFF  → LED filled DARK GRAY (#333333)
 
-** STARTUP **
+** RELAY DEFAULTS **
 
-- macOS startup installer exists:
-  Python/install_startup_macos.sh
-- The startup installer builds the app if needed and installs a LaunchAgent.
-- The LaunchAgent launches the packaged native app at login.
-- Windows startup installer exists:
-  Python/install_startup_windows.bat
-- The Windows startup installer builds the EXE if needed and creates a Startup folder shortcut.
+  Channel 1 : ON  at startup
+  Channel 2 : OFF at startup
+  Channel 3 : OFF at startup
+  Channel 4 : OFF at startup
+
+- Default states are pushed to the board only after serial connection succeeds.
+- If no board is connected the LEDs remain dark (OFF state displayed).
+
+** SERIAL PROTOCOL **
+
+- Baud rate  : 9600
+- Command    : 4 bytes  [0xA0, relay_num, state, checksum]
+  - relay_num : 1 – 4
+  - state     : 0x01 = ON,  0x00 = OFF
+  - checksum  : (0xA0 + relay_num + state) & 0xFF
+- Auto-detects CH340-compatible ports by USB VID or port description.
+  Supported VIDs: 0x1A86 (CH340), 0x0403 (FTDI), 0x067B (Prolific)
+- "Refresh Serial" button rescans all ports and reconnects.
+
+** STARTUP — macOS **
+
+- Installer  : Python/install_startup_macos.sh  (run once)
+- Mechanism  : LaunchAgent plist at ~/Library/LaunchAgents/
+  com.ch340.relay-controller.plist
+- The app launches automatically at every login.
+- To start manually after install:
+    launchctl start com.ch340.relay-controller
+    osascript -e 'tell application "Python" to activate'
+- To uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.ch340.relay-controller.plist
+    rm ~/Library/LaunchAgents/com.ch340.relay-controller.plist
+
+** STARTUP — WINDOWS **
+
+- Installer  : Python/install_startup_windows.bat  (run once)
+- Mechanism  : VBScript shortcut in the Windows Startup folder
+- The EXE launches silently (no console window) at every login.
 
 ** APP ICON **
 
-- Icon generator exists:
-  Python/create_icon.py
-- The icon is a red LED with a white switch in the middle.
-- Generated assets:
-  - Python/relay_icon.png
-  - Python/relay_icon.ico
-  - Python/AppIcon.icns
+- Generator  : Python/create_icon.py  (requires Pillow)
+- Design     : Red LED with white toggle switch on dark panel background
+- Outputs    :
+    Python/relay_icon.png   (512 x 512, source)
+    Python/relay_icon.ico   (multi-size Windows icon)
+    Python/AppIcon.icns     (macOS icon bundle, generated by create_app.sh)
+- Generated files are excluded from git (.gitignore).
 
-** BUILD **
+** BUILD — macOS **
 
-- macOS build script:
-  Python/create_app.sh
-- Build output:
-  Python/dist/CH340 Relay Controller.app
-- PyInstaller build temp files are created under the system temp directory to avoid macOS codesign metadata errors on the external volume.
-- Windows build script:
-  Python/create_app_windows.bat
-- Windows build output:
-  Python/dist/CH340 Relay Controller.exe
-- Windows EXE should be built on a Windows 11 machine because PyInstaller does not cross-compile Windows executables from macOS.
-- A full Windows installer is optional. For personal use, the EXE plus the Startup shortcut script is enough. Use an installer later only if Start Menu entries, uninstall support, code signing, or broader distribution are needed.
+- Script     : Python/create_app.sh
+- Tool       : PyInstaller (--windowed, one-dir bundle)
+- Output     : Python/dist/CH340 Relay Controller.app
+- Build temp : system TMPDIR to avoid codesign issues on external volumes
+- Desktop icon app is also available (AppleScript wrapper built separately).
+
+** BUILD — WINDOWS (via GitHub Actions) **
+
+- Workflow   : .github/workflows/build-windows.yml
+- Trigger    : every push to main branch, or manual via workflow_dispatch
+- Runner     : windows-latest
+- Tool       : PyInstaller (--windowed --onefile)
+- Output     : single-file  CH340 Relay Controller.exe
+- Download   : GitHub repo → Actions tab → latest run → Artifacts
+    → CH340-Relay-Controller-Windows.zip → unzip → .exe
 
 ** CODING STYLE **
 
-- Follow:
-  ../Shared Prompts/coding_style_python.md
-- Each Python file must include the required proprietary/export-controlled header.
-- Each function must include a short comment block description.
+- Follow : ../Shared Prompts/coding_style_python.md
+- Required header in every Python file:
+    #-----------------------------------------------------------------------------
+    #                        Proprietary - Export Controlled
+    #
+    # Descriptions:
+    #
+    # Author: Chinh Nguyen
+    #-----------------------------------------------------------------------------
+- 78-dash separator comment block above every function definition.
+- C-style snake_case naming; variable names 5 – 20 characters.
+- Use i, j, k, l for loop indices only.
 
 ** OUTPUT RULES **
 
-- Put generated project code under ./Python.
-- Keep the app clickable as a normal macOS .app bundle.
-- Rebuild the app after source changes so Python/dist/CH340 Relay Controller.app matches the current source.
+- All generated Python source goes under ./Python.
+- Rebuild Python/dist/ after source changes so the installed app stays current.
+- Do not commit dist/, build/, *.spec, or generated icon files to git.
